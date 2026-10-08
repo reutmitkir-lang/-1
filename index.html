@@ -440,7 +440,7 @@
       <select id="teacher-student-select" onchange="loadStudentQuestionsForTeacher()"></select>
 
       <div id="question-management-area" class="hidden" style="margin-top: 15px;">
-        <h4>הוספת שאלה جديدة:</h4>
+        <h4>הוספת שאלה חדשה:</h4>
         <input type="text" id="q-text" placeholder="מה השאלה?">
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px;">
           <input type="text" id="q-opt1" placeholder="תשובה 1">
@@ -1008,6 +1008,8 @@
     function triggerQuestionModal() {
       clearInterval(dinoInterval);
       const st = getCurrentStudent();
+      if (!st.questions || st.questions.length === 0) return;
+
       const qIndex = Math.floor(Math.random() * st.questions.length);
       const q = st.questions[qIndex];
 
@@ -1027,41 +1029,57 @@
       document.getElementById('question-modal').classList.remove('hidden');
     }
 
-    function checkAnswer(selected, correct) {
+    function checkAnswer(selectedOption, correctOption) {
       const st = getCurrentStudent();
-      const feedback = document.getElementById('modal-feedback');
+      const feedbackEl = document.getElementById('modal-feedback');
+      const optionBtns = document.querySelectorAll('.option-btn');
+      
+      optionBtns.forEach(btn => btn.disabled = true);
 
-      if (selected === correct) {
-        feedback.style.color = 'var(--success)';
-        feedback.innerText = 'נכון מאוד! 🎉 (+5 🪙 | +5 ⭐)';
-        st.coins += 5;
-        st.points += 5;
+      if (selectedOption === correctOption) {
+        feedbackEl.style.color = '#10b981';
+        feedbackEl.innerText = 'תשובה נכונה! כל הכבוד! 🎉 (+10 מטבעות, +20 נקודות)';
+        st.coins += 10;
+        st.points += 20;
         saveData();
         updateHUD();
 
         setTimeout(() => {
           document.getElementById('question-modal').classList.add('hidden');
           resetGameTimer();
-        }, 1200);
+          if (activeGameType === 'dino' && isDinoRunning) {
+            requestAnimationFrame(dinoLoop);
+          }
+        }, 1500);
       } else {
+        feedbackEl.style.color = '#ef4444';
+        feedbackEl.innerText = 'תשובה שגויה, ירד לך לב! 💔';
         st.hearts--;
         updateHUD();
-        feedback.style.color = 'var(--danger)';
-        feedback.innerText = `תשובה שגויה! ירד לב ❤️ (נשארו ${st.hearts})`;
 
         if (st.hearts <= 0) {
           setTimeout(() => {
-            alert('נגמרו הלבבות! המשחק נגמר.');
             document.getElementById('question-modal').classList.add('hidden');
+            alert('אוי! נגמרו הלבבות. המשחק הסתיים.');
             exitGame();
-          }, 1200);
+          }, 1500);
+        } else {
+          setTimeout(() => {
+            document.getElementById('question-modal').classList.add('hidden');
+            resetGameTimer();
+            if (activeGameType === 'dino' && isDinoRunning) {
+              requestAnimationFrame(dinoLoop);
+            }
+          }, 1500);
         }
       }
     }
 
     function updateHUD() {
       const st = getCurrentStudent();
-      const heartsStr = '❤️'.repeat(Math.max(0, st.hearts));
+      if (!st) return;
+
+      const heartsStr = '❤️'.repeat(Math.max(0, st.hearts || 0));
 
       if (activeGameType === 'dino') {
         document.getElementById('dino-coins').innerText = st.coins;
@@ -1070,83 +1088,163 @@
       } else if (activeGameType === 'tetris') {
         document.getElementById('tetris-coins').innerText = st.coins;
         document.getElementById('tetris-points').innerText = st.points;
-        document.getElementById('tetris-hearts').innerText = heartsStr;
+        document.getElementById('tetris-hearts').innerText = st.hearts || 0;
       }
     }
 
     function exitGame() {
+      clearInterval(dinoInterval);
       isDinoRunning = false;
       activeGameType = null;
-      clearInterval(dinoInterval);
+      
+      window.removeEventListener('keydown', handleDinoJump);
+      const canvas = document.getElementById('dinoCanvas');
+      if (canvas) canvas.removeEventListener('touchstart', handleDinoJump);
+
+      saveData();
       showStudentDashboard();
     }
 
-    // --- מורה ---
-    function showTeacherLogin() { hideAllViews(); document.getElementById('view-teacher-login').classList.remove('hidden'); }
-    function checkTeacherPass() {
-      if (document.getElementById('teacher-pass-input').value === '1234') showTeacherDashboard();
-      else alert('סיסמה שגויה!');
+    // --- ניהול מורה ---
+    function showTeacherLogin() {
+      hideAllViews();
+      document.getElementById('view-teacher-login').classList.remove('hidden');
+      document.getElementById('teacher-pass-input').value = '';
     }
+
+    function checkTeacherPass() {
+      const pass = document.getElementById('teacher-pass-input').value;
+      if (pass === '1234') {
+        showTeacherDashboard();
+      } else {
+        alert('סיסמה שגויה!');
+      }
+    }
+
     function showTeacherDashboard() {
       hideAllViews();
       document.getElementById('view-teacher-dashboard').classList.remove('hidden');
-      const sel = document.getElementById('teacher-student-select');
-      sel.innerHTML = '<option value="">-- בחרי תלמיד/ה --</option>';
-      appData.students.forEach(s => sel.innerHTML += `<option value="${s.id}">${s.name}</option>`);
-    }
-    function addStudent() {
-      const name = document.getElementById('new-student-name').value.trim();
-      if (!name) return;
-      appData.students.push({
-        id: Date.now().toString(), name, points: 0, coins: 50, hearts: 3,
-        bgColor: '#0f172a', equippedSkin: 'classic', unlockedSkins: ['classic'],
-        roomItems: ['lamp_pink'], questions: []
+      document.getElementById('nav-logout-btn').classList.remove('hidden');
+      
+      const select = document.getElementById('teacher-student-select');
+      select.innerHTML = '<option value="">-- בחר/י תלמיד/ה --</option>';
+      appData.students.forEach(st => {
+        select.innerHTML += `<option value="${st.id}">${st.name}</option>`;
       });
+      document.getElementById('question-management-area').classList.add('hidden');
+    }
+
+    function addStudent() {
+      const nameInput = document.getElementById('new-student-name');
+      const name = nameInput.value.trim();
+      if (!name) {
+        alert('אנא הזן שם תלמיד');
+        return;
+      }
+      const newSt = {
+        id: Date.now().toString(),
+        name: name,
+        points: 0,
+        coins: 50,
+        hearts: 3,
+        bgColor: '#0f172a',
+        equippedSkin: 'classic',
+        unlockedSkins: ['classic'],
+        roomItems: [],
+        questions: [
+          { text: 'כמה זה 5 + 5?', options: ['8', '10', '12', '15'], correct: 2 }
+        ]
+      };
+      appData.students.push(newSt);
       saveData();
+      nameInput.value = '';
       showTeacherDashboard();
+      alert(`התלמיד/ה ${name} נוספ/ה בהצלחה!`);
     }
+
     function loadStudentQuestionsForTeacher() {
-      const id = document.getElementById('teacher-student-select').value;
+      const select = document.getElementById('teacher-student-select');
+      const stId = select.value;
       const area = document.getElementById('question-management-area');
-      if (!id) { area.classList.add('hidden'); return; }
+      
+      if (!stId) {
+        area.classList.add('hidden');
+        return;
+      }
       area.classList.remove('hidden');
-      renderTeacherQuestionsList(id);
+      renderTeacherQuestionsList(stId);
     }
+
     function renderTeacherQuestionsList(stId) {
       const st = appData.students.find(s => s.id === stId);
-      const list = document.getElementById('existing-questions-list');
-      list.innerHTML = '';
+      const listEl = document.getElementById('existing-questions-list');
+      if (!st || !st.questions || st.questions.length === 0) {
+        listEl.innerHTML = '<p>אין שאלות שמורות לתלמיד/ה זה.</p>';
+        return;
+      }
+      listEl.innerHTML = '<h4 style="margin-top:10px;">שאלות קיימות:</h4>';
       st.questions.forEach((q, idx) => {
-        list.innerHTML += `<div style="background:rgba(255,255,255,0.05); padding:8px; margin-top:5px; border-radius:6px; display:flex; justify-content:space-between;">
-          <div><strong>${q.text}</strong></div>
-          <button class="btn btn-danger" onclick="deleteQuestion('${stId}', ${idx})">מחק</button>
-        </div>`;
+        listEl.innerHTML += `
+          <div style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px; margin-top: 8px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <strong>${idx + 1}. ${q.text}</strong><br>
+              <small>תשובות: ${q.options.join(', ')} | תשובה נכונה: #${q.correct}</small>
+            </div>
+            <button class="btn btn-danger" style="padding: 5px 10px; font-size:0.8rem;" onclick="deleteQuestion('${stId}', ${idx})">מחק</button>
+          </div>
+        `;
       });
     }
+
     function addQuestionToStudent() {
-      const stId = document.getElementById('teacher-student-select').value;
-      const text = document.getElementById('q-text').value.trim();
-      const o1 = document.getElementById('q-opt1').value.trim();
-      const o2 = document.getElementById('q-opt2').value.trim();
-      const o3 = document.getElementById('q-opt3').value.trim();
-      const o4 = document.getElementById('q-opt4').value.trim();
+      const select = document.getElementById('teacher-student-select');
+      const stId = select.value;
+      const st = appData.students.find(s => s.id === stId);
+
+      const qText = document.getElementById('q-text').value.trim();
+      const opt1 = document.getElementById('q-opt1').value.trim();
+      const opt2 = document.getElementById('q-opt2').value.trim();
+      const opt3 = document.getElementById('q-opt3').value.trim();
+      const opt4 = document.getElementById('q-opt4').value.trim();
       const correct = parseInt(document.getElementById('q-correct').value);
 
-      if (!text || !o1 || !o2) return;
-      const st = appData.students.find(s => s.id === stId);
-      st.questions.push({ text, options: [o1, o2, o3, o4], correct });
+      if (!qText || !opt1 || !opt2 || !opt3 || !opt4 || !correct) {
+        alert('אנא מלא/י את כל שדות השאלה והתשובות!');
+        return;
+      }
+
+      st.questions.push({
+        text: qText,
+        options: [opt1, opt2, opt3, opt4],
+        correct: correct
+      });
+
       saveData();
+      
+      document.getElementById('q-text').value = '';
+      document.getElementById('q-opt1').value = '';
+      document.getElementById('q-opt2').value = '';
+      document.getElementById('q-opt3').value = '';
+      document.getElementById('q-opt4').value = '';
+      document.getElementById('q-correct').value = 1;
+
       renderTeacherQuestionsList(stId);
-    }
-    function deleteQuestion(stId, idx) {
-      const st = appData.students.find(s => s.id === stId);
-      st.questions.splice(idx, 1);
-      saveData();
-      renderTeacherQuestionsList(stId);
+      alert('השאלה נוספה בהצלחה!');
     }
 
-    // התחלה
-    showStudentSelect();
+    function deleteQuestion(stId, qIdx) {
+      const st = appData.students.find(s => s.id === stId);
+      if (st && st.questions) {
+        st.questions.splice(qIdx, 1);
+        saveData();
+        renderTeacherQuestionsList(stId);
+      }
+    }
+
+    // --- אתחול ראשוני ---
+    window.onload = function() {
+      showStudentSelect();
+    };
   </script>
 </body>
 </html>
