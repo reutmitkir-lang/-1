@@ -449,4 +449,704 @@
           <input type="text" id="q-opt4" placeholder="תשובה 4">
         </div>
         <div style="margin-top: 8px;">
-          <label>מספר התשובה הנכונה (1-4):
+          <label>מספר התשובה הנכונה (1-4):</label>
+          <input type="number" id="q-correct" min="1" max="4" value="1">
+        </div>
+        <button class="btn btn-success" style="margin-top: 10px;" onclick="addQuestionToStudent()">שמור שאלה</button>
+        <div id="existing-questions-list" style="margin-top: 15px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- מודאל שאלה -->
+  <div id="question-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <h2 style="color: var(--accent);">שאלה בזמן משחק! 🤔</h2>
+      <p id="modal-question-text" style="font-size: 1.2rem; margin: 15px 0; font-weight: bold;"></p>
+      <div id="modal-options" class="options-grid"></div>
+      <p id="modal-feedback" style="margin-top: 15px; font-weight: bold;"></p>
+    </div>
+  </div>
+
+  <script>
+    // --- נתונים וסקינים ---
+    const WORLDS = [
+      { name: 'עולם 1: היער הירוק הקסום 🌲', bg: '#064e3b', minPoints: 0 },
+      { name: 'עולם 2: המדבר המוזהב 🏜️', bg: '#78350f', minPoints: 300 },
+      { name: 'עולם 3: ממלכת הקרח ❄️', bg: '#1e3a8a', minPoints: 600 },
+      { name: 'עולם 4: הגלקסיה הנוצצת 🌌', bg: '#311042', minPoints: 900 }
+    ];
+
+    const SKINS = {
+      classic: { name: 'דינו קלאסי 🦖', type: 'skin', price: 0, color: '#22c55e' },
+      fire: { name: 'דינו אש 🐉', type: 'skin', price: 30, color: '#ef4444' },
+      hat_party: { name: 'כובע מסיבה 🥳', type: 'skin', price: 20, hat: 'party' },
+      hat_crown: { name: 'כתר מלכותי 👑', type: 'skin', price: 50, hat: 'crown' },
+      hat_cool: { name: 'כובע בלש 🎩', type: 'skin', price: 35, hat: 'cool' },
+      tuxedo: { name: 'חליפה מהודרת 👔', type: 'skin', price: 60, suit: true },
+      disguise_capybara: { name: 'תחפושת קפיברה 🦫', type: 'skin', price: 80, animal: 'capybara' },
+      disguise_cat: { name: 'תחפושת חתול 🐱', type: 'skin', price: 70, animal: 'cat' },
+      disguise_unicorn: { name: 'תחפושת חד קרן 🦄', type: 'skin', price: 100, animal: 'unicorn' }
+    };
+
+    const ROOM_ITEMS = {
+      lamp_pink: { name: 'מנורת ניאון ורודה 💡', price: 25, type: 'room', draw: 'lamp_pink' },
+      lamp_cyan: { name: 'מנורת ניאון תכלת 💡', price: 25, type: 'room', draw: 'lamp_cyan' },
+      capybara_cute: { name: 'קפיברה חמודה 🦫', price: 40, type: 'room', draw: 'capybara' },
+      throne: { name: 'כס מלכות מוזהב 👑', price: 90, type: 'room', draw: 'throne' },
+      chest: { name: 'תיבת אוצר 🪙', price: 50, type: 'room', draw: 'chest' }
+    };
+
+    let appData = JSON.parse(localStorage.getItem('dinoGameDataV2')) || {
+      students: [
+        {
+          id: '1',
+          name: 'תלמיד לדוגמה',
+          points: 0,
+          coins: 50,
+          hearts: 3,
+          bgColor: '#0f172a',
+          equippedSkin: 'classic',
+          unlockedSkins: ['classic'],
+          roomItems: ['lamp_pink', 'capybara_cute'],
+          questions: [
+            { text: 'כמה זה 6 + 4?', options: ['8', '10', '12', '14'], correct: 2 },
+            { text: 'איך אומרים "שמש" באנגלית?', options: ['Moon', 'Sun', 'Star', 'Sky'], correct: 2 }
+          ]
+        }
+      ]
+    };
+
+    let currentStudentId = null;
+    let activeGameType = null; // 'dino' or 'tetris'
+    let currentShopTab = 'skins';
+
+    function saveData() {
+      localStorage.setItem('dinoGameDataV2', JSON.stringify(appData));
+    }
+
+    function getCurrentStudent() {
+      return appData.students.find(s => s.id === currentStudentId);
+    }
+
+    // --- ניווט ---
+    function hideAllViews() {
+      document.querySelectorAll('.card').forEach(c => c.classList.add('hidden'));
+    }
+
+    function showStudentSelect() {
+      hideAllViews();
+      document.getElementById('view-student-select').classList.remove('hidden');
+      document.getElementById('nav-logout-btn').classList.add('hidden');
+      document.getElementById('nav-teacher-btn').classList.remove('hidden');
+      renderStudentList();
+    }
+
+    function renderStudentList() {
+      const list = document.getElementById('student-list');
+      list.innerHTML = '';
+      appData.students.forEach(st => {
+        const div = document.createElement('div');
+        div.className = 'student-card';
+        div.innerHTML = `<h3>${st.name}</h3><p style="margin-top:5px;">⭐ ${st.points} | 🪙 ${st.coins}</p>`;
+        div.onclick = () => { currentStudentId = st.id; showStudentDashboard(); };
+        list.appendChild(div);
+      });
+    }
+
+    function showStudentDashboard() {
+      hideAllViews();
+      const st = getCurrentStudent();
+      document.body.style.backgroundColor = st.bgColor || '#0f172a';
+      document.getElementById('welcome-student-text').innerText = `שלום, ${st.name}! 👋`;
+      document.getElementById('dash-coins').innerText = st.coins;
+      document.getElementById('dash-points').innerText = st.points;
+      document.getElementById('dash-hearts').innerText = '❤️'.repeat(st.hearts || 3);
+
+      // עולם במפה
+      const currentWorld = WORLDS.slice().reverse().find(w => st.points >= w.minPoints) || WORLDS[0];
+      document.getElementById('world-banner').innerText = currentWorld.name;
+      document.getElementById('world-banner').style.background = currentWorld.bg;
+
+      // צור חיה
+      drawPetIcon(st.points);
+
+      document.getElementById('view-student-dashboard').classList.remove('hidden');
+      document.getElementById('nav-logout-btn').classList.remove('hidden');
+    }
+
+    function logout() {
+      currentStudentId = null;
+      document.body.style.backgroundColor = '#0f172a';
+      showStudentSelect();
+    }
+
+    function changeUserBg(color) {
+      const st = getCurrentStudent();
+      st.bgColor = color;
+      document.body.style.backgroundColor = color;
+      saveData();
+    }
+
+    // --- ציור חיה (Pet) ---
+    function drawPetIcon(points) {
+      const canvas = document.getElementById('petCanvas');
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0,0,120,120);
+
+      const level = Math.floor(points / 300) + 1;
+      let name = "דרקוני התינוק 🐣";
+      if (level === 2) name = "דרקון הנצנצים ✨";
+      if (level === 3) name = "דרקון הקסם המלכותי 👑";
+      if (level >= 4) name = "דרקון הגלקסיה הקוסמי 🌌";
+      document.getElementById('pet-name').innerText = name;
+
+      // גוף
+      ctx.fillStyle = level >= 4 ? '#c084fc' : (level >= 3 ? '#f59e0b' : '#10b981');
+      ctx.beginPath();
+      ctx.arc(60, 70, 30, 0, Math.PI * 2);
+      ctx.fill();
+
+      // ראש
+      ctx.beginPath();
+      ctx.arc(60, 40, 22, 0, Math.PI * 2);
+      ctx.fill();
+
+      // עיניים חמודות
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(52, 35, 6, 0, Math.PI * 2);
+      ctx.arc(68, 35, 6, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#000';
+      ctx.beginPath();
+      ctx.arc(52, 35, 3, 0, Math.PI * 2);
+      ctx.arc(68, 35, 3, 0, Math.PI * 2);
+      ctx.fill();
+
+      // כנפיים לפי שלב
+      if (level >= 2) {
+        ctx.fillStyle = '#ec4899';
+        ctx.fillRect(20, 60, 15, 20);
+        ctx.fillRect(85, 60, 15, 20);
+      }
+      if (level >= 3) {
+        // כתר
+        ctx.fillStyle = '#eab308';
+        ctx.fillRect(52, 12, 16, 8);
+      }
+    }
+
+    // --- חנות ---
+    function openShop() {
+      hideAllViews();
+      document.getElementById('view-shop').classList.remove('hidden');
+      document.getElementById('shop-coins-display').innerText = getCurrentStudent().coins;
+      renderShopItems();
+    }
+
+    function switchShopTab(tab) {
+      currentShopTab = tab;
+      document.getElementById('tab-skins-btn').classList.toggle('active', tab === 'skins');
+      document.getElementById('tab-room-btn').classList.toggle('active', tab === 'room');
+      renderShopItems();
+    }
+
+    function renderShopItems() {
+      const grid = document.getElementById('shop-items-grid');
+      grid.innerHTML = '';
+      const st = getCurrentStudent();
+      const items = currentShopTab === 'skins' ? SKINS : ROOM_ITEMS;
+
+      Object.keys(items).forEach(key => {
+        const item = items[key];
+        const hasItem = (currentShopTab === 'skins' ? st.unlockedSkins : st.roomItems).includes(key);
+        const isEquipped = st.equippedSkin === key;
+
+        let btnText = 'קנה 🪙';
+        let action = `buyShopItem('${key}')`;
+
+        if (currentShopTab === 'skins') {
+          if (isEquipped) { btnText = 'בשימוש ✔️'; action = ''; }
+          else if (hasItem) { btnText = 'לבש 👕'; action = `equipSkin('${key}')`; }
+        } else {
+          if (hasItem) { btnText = 'בחדר שלך 🛋️'; action = ''; }
+        }
+
+        grid.innerHTML += `
+          <div class="shop-card">
+            <h4>${item.name}</h4>
+            <p style="margin: 8px 0;">מחיר: ${item.price} 🪙</p>
+            <button class="btn" style="width:100%; font-size:0.85rem;" onclick="${action}">${btnText}</button>
+          </div>
+        `;
+      });
+    }
+
+    function buyShopItem(key) {
+      const st = getCurrentStudent();
+      const items = currentShopTab === 'skins' ? SKINS : ROOM_ITEMS;
+      const item = items[key];
+
+      if (st.coins >= item.price) {
+        st.coins -= item.price;
+        if (currentShopTab === 'skins') {
+          st.unlockedSkins.push(key);
+          st.equippedSkin = key;
+        } else {
+          st.roomItems.push(key);
+        }
+        saveData();
+        openShop();
+        alert('תתחדש/י! הקנייה בוצעה בהצלחה 🎉');
+      } else {
+        alert('אין לך מספיק מטבעות!');
+      }
+    }
+
+    function equipSkin(key) {
+      const st = getCurrentStudent();
+      st.equippedSkin = key;
+      saveData();
+      openShop();
+    }
+
+    // --- חדר תלמיד ---
+    function openRoom() {
+      hideAllViews();
+      document.getElementById('view-room').classList.remove('hidden');
+      drawRoom();
+    }
+
+    function drawRoom() {
+      const canvas = document.getElementById('roomCanvas');
+      const ctx = canvas.getContext('2d');
+      const st = getCurrentStudent();
+
+      // ארמון מלכותי
+      ctx.fillStyle = '#311042';
+      ctx.fillRect(0,0,600,350);
+
+      // עמודים
+      ctx.fillStyle = '#6b21a8';
+      ctx.fillRect(20,0,40,280);
+      ctx.fillRect(540,0,40,280);
+
+      // שטיח אדום
+      ctx.fillStyle = '#dc2626';
+      ctx.beginPath();
+      ctx.moveTo(200, 350);
+      ctx.lineTo(400, 350);
+      ctx.lineTo(350, 250);
+      ctx.lineTo(250, 250);
+      ctx.fill();
+
+      // רצפה
+      ctx.fillStyle = '#4c1d95';
+      ctx.fillRect(0, 280, 600, 70);
+
+      // חפצים שנרכשו
+      if (st.roomItems.includes('lamp_pink')) {
+        ctx.fillStyle = '#ec4899';
+        ctx.beginPath(); ctx.arc(100, 80, 20, 0, Math.PI*2); ctx.fill();
+      }
+      if (st.roomItems.includes('lamp_cyan')) {
+        ctx.fillStyle = '#06b6d4';
+        ctx.beginPath(); ctx.arc(500, 80, 20, 0, Math.PI*2); ctx.fill();
+      }
+      if (st.roomItems.includes('capybara_cute')) {
+        // קפיברה חמודה
+        ctx.fillStyle = '#854d0e';
+        ctx.fillRect(150, 250, 50, 30);
+        ctx.fillRect(180, 240, 20, 20);
+      }
+      if (st.roomItems.includes('throne')) {
+        ctx.fillStyle = '#eab308';
+        ctx.fillRect(270, 200, 60, 80);
+      }
+    }
+
+    // --- מנוע משחק דינוזאור ---
+    let dinoTimer, dinoInterval;
+    let dino = { x: 50, y: 170, w: 40, h: 50, vy: 0, gravity: 0.8, isJumping: false };
+    let cactuses = [];
+    let isDinoRunning = false;
+
+    function startDinoGame() {
+      const st = getCurrentStudent();
+      if (!st.questions || st.questions.length === 0) {
+        alert('אנא בקשי מהמורה להוסיף עבורך שאלות תחילה!');
+        return;
+      }
+
+      hideAllViews();
+      document.getElementById('view-game-dino').classList.remove('hidden');
+      activeGameType = 'dino';
+
+      dino.y = 170; dino.vy = 0; cactuses = [];
+      isDinoRunning = true;
+      st.hearts = 3;
+
+      updateHUD();
+      resetGameTimer();
+
+      const canvas = document.getElementById('dinoCanvas');
+      window.addEventListener('keydown', handleDinoJump);
+      canvas.addEventListener('touchstart', handleDinoJump);
+
+      requestAnimationFrame(dinoLoop);
+    }
+
+    function handleDinoJump(e) {
+      if ((e.code === 'Space' || e.type === 'touchstart') && !dino.isJumping) {
+        dino.vy = -14;
+        dino.isJumping = true;
+      }
+    }
+
+    function resetGameTimer() {
+      clearInterval(dinoInterval);
+      dinoTimer = 7;
+      const timerEl = activeGameType === 'dino' ? document.getElementById('dino-timer') : document.getElementById('tetris-timer');
+      if (timerEl) timerEl.innerText = dinoTimer;
+
+      dinoInterval = setInterval(() => {
+        dinoTimer--;
+        if (timerEl) timerEl.innerText = dinoTimer;
+        if (dinoTimer <= 0) {
+          triggerQuestionModal();
+        }
+      }, 1000);
+    }
+
+    function dinoLoop() {
+      if (!isDinoRunning || activeGameType !== 'dino') return;
+
+      dino.vy += dino.gravity;
+      dino.y += dino.vy;
+      if (dino.y >= 170) { dino.y = 170; dino.vy = 0; dino.isJumping = false; }
+
+      if (Math.random() < 0.012 && cactuses.length < 2) {
+        cactuses.push({ x: 700, w: 22, h: 40 });
+      }
+
+      for (let i = 0; i < cactuses.length; i++) {
+        cactuses[i].x -= 6;
+        // התנגשות קקטוס
+        if (dino.x < cactuses[i].x + cactuses[i].w && dino.x + dino.w > cactuses[i].x && dino.y + dino.h > 220 - cactuses[i].h) {
+          alert('נגעת בקקטוס! הפסילה נרשמה אך כל המטבעות והנקודות שצברת נשמרו 🎉');
+          exitGame();
+          return;
+        }
+      }
+      cactuses = cactuses.filter(c => c.x > -30);
+
+      drawDinoCanvas();
+      requestAnimationFrame(dinoLoop);
+    }
+
+    function drawDinoCanvas() {
+      const canvas = document.getElementById('dinoCanvas');
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0,0,700,250);
+
+      // קרקע
+      ctx.fillStyle = '#334155';
+      ctx.fillRect(0,220,700,30);
+
+      // דינוזאור מצחיק עם שיניים
+      const st = getCurrentStudent();
+      const skin = SKINS[st.equippedSkin] || SKINS.classic;
+      
+      ctx.fillStyle = skin.color || '#22c55e';
+      ctx.fillRect(dino.x, dino.y, dino.w, dino.h);
+
+      // שיניים בולטות מצחיקות 🦷
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(dino.x + 30, dino.y + 25, 6, 8);
+      ctx.fillRect(dino.x + 22, dino.y + 25, 6, 8);
+
+      // עין
+      ctx.fillStyle = '#000';
+      ctx.fillRect(dino.x + 28, dino.y + 10, 6, 6);
+
+      // כובע במידה ויש
+      if (skin.hat === 'party') {
+        ctx.fillStyle = '#ec4899';
+        ctx.beginPath(); ctx.moveTo(dino.x+10, dino.y); ctx.lineTo(dino.x+30, dino.y); ctx.lineTo(dino.x+20, dino.y-20); ctx.fill();
+      } else if (skin.hat === 'crown') {
+        ctx.fillStyle = '#eab308';
+        ctx.fillRect(dino.x+10, dino.y-12, 20, 12);
+      }
+
+      // קקטוסים
+      ctx.fillStyle = '#15803d';
+      cactuses.forEach(c => ctx.fillRect(c.x, 220 - c.h, c.w, c.h));
+    }
+
+    // --- מנוע משחק טטריס ---
+    let tetrisBoard, currentPiece;
+    const SHAPES = [
+      [[1,1,1,1]], // I
+      [[1,1],[1,1]], // O
+      [[0,1,0],[1,1,1]], // T
+      [[1,0,0],[1,1,1]] // L
+    ];
+
+    function startTetrisGame() {
+      const st = getCurrentStudent();
+      if (!st.questions || st.questions.length === 0) {
+        alert('אנא בקשי מהמורה להוסיף עבורך שאלות תחילה!');
+        return;
+      }
+
+      hideAllViews();
+      document.getElementById('view-game-tetris').classList.remove('hidden');
+      activeGameType = 'tetris';
+      st.hearts = 3;
+
+      tetrisBoard = Array(20).fill().map(() => Array(10).fill(0));
+      spawnTetrisPiece();
+      updateHUD();
+      resetGameTimer();
+
+      requestAnimationFrame(tetrisLoop);
+    }
+
+    function spawnTetrisPiece() {
+      const shape = SHAPES[Math.floor(Math.random() * SHAPES.length)];
+      currentPiece = { shape, x: 3, y: 0 };
+    }
+
+    function moveTetris(dir) {
+      currentPiece.x += dir;
+      if (checkTetrisCollision()) currentPiece.x -= dir;
+    }
+
+    function rotateTetris() {
+      const rotated = currentPiece.shape[0].map((_, i) => currentPiece.shape.map(row => row[i]).reverse());
+      const oldShape = currentPiece.shape;
+      currentPiece.shape = rotated;
+      if (checkTetrisCollision()) currentPiece.shape = oldShape;
+    }
+
+    function dropTetris() {
+      currentPiece.y++;
+      if (checkTetrisCollision()) {
+        currentPiece.y--;
+        mergeTetrisPiece();
+        spawnTetrisPiece();
+        if (checkTetrisCollision()) {
+          alert('הקופסה התמלאה! המשחק נגמר.');
+          exitGame();
+        }
+      }
+    }
+
+    function checkTetrisCollision() {
+      for (let r = 0; r < currentPiece.shape.length; r++) {
+        for (let c = 0; c < currentPiece.shape[r].length; c++) {
+          if (currentPiece.shape[r][c]) {
+            let newX = currentPiece.x + c;
+            let newY = currentPiece.y + r;
+            if (newX < 0 || newX >= 10 || newY >= 20 || (newY >= 0 && tetrisBoard[newY][newX])) return true;
+          }
+        }
+      }
+      return false;
+    }
+
+    function mergeTetrisPiece() {
+      currentPiece.shape.forEach((row, r) => {
+        row.forEach((value, c) => {
+          if (value) tetrisBoard[currentPiece.y + r][currentPiece.x + c] = 1;
+        });
+      });
+    }
+
+    let lastTetrisDrop = 0;
+    function tetrisLoop(timestamp) {
+      if (activeGameType !== 'tetris') return;
+
+      if (timestamp - lastTetrisDrop > 800) {
+        dropTetris();
+        lastTetrisDrop = timestamp;
+      }
+
+      drawTetrisCanvas();
+      requestAnimationFrame(tetrisLoop);
+    }
+
+    function drawTetrisCanvas() {
+      const canvas = document.getElementById('tetrisCanvas');
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0,0,240,400);
+
+      // לוח
+      for (let r = 0; r < 20; r++) {
+        for (let c = 0; c < 10; c++) {
+          if (tetrisBoard[r][c]) {
+            ctx.fillStyle = '#6366f1';
+            ctx.fillRect(c*24, r*20, 22, 18);
+          }
+        }
+      }
+
+      // חתיכה פעילה
+      if (currentPiece) {
+        ctx.fillStyle = '#f59e0b';
+        currentPiece.shape.forEach((row, r) => {
+          row.forEach((value, c) => {
+            if (value) ctx.fillRect((currentPiece.x + c)*24, (currentPiece.y + r)*20, 22, 18);
+          });
+        });
+      }
+    }
+
+    // --- שאלות ופופאפים ---
+    function triggerQuestionModal() {
+      clearInterval(dinoInterval);
+      const st = getCurrentStudent();
+      const qIndex = Math.floor(Math.random() * st.questions.length);
+      const q = st.questions[qIndex];
+
+      document.getElementById('modal-question-text').innerText = q.text;
+      document.getElementById('modal-feedback').innerText = '';
+      
+      const opts = document.getElementById('modal-options');
+      opts.innerHTML = '';
+      q.options.forEach((opt, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'option-btn';
+        btn.innerText = opt;
+        btn.onclick = () => checkAnswer(i + 1, q.correct);
+        opts.appendChild(btn);
+      });
+
+      document.getElementById('question-modal').classList.remove('hidden');
+    }
+
+    function checkAnswer(selected, correct) {
+      const st = getCurrentStudent();
+      const feedback = document.getElementById('modal-feedback');
+
+      if (selected === correct) {
+        feedback.style.color = 'var(--success)';
+        feedback.innerText = 'נכון מאוד! 🎉 (+5 🪙 | +5 ⭐)';
+        st.coins += 5;
+        st.points += 5;
+        saveData();
+        updateHUD();
+
+        setTimeout(() => {
+          document.getElementById('question-modal').classList.add('hidden');
+          resetGameTimer();
+        }, 1200);
+      } else {
+        st.hearts--;
+        updateHUD();
+        feedback.style.color = 'var(--danger)';
+        feedback.innerText = `תשובה שגויה! ירד לב ❤️ (נשארו ${st.hearts})`;
+
+        if (st.hearts <= 0) {
+          setTimeout(() => {
+            alert('נגמרו הלבבות! המשחק נגמר.');
+            document.getElementById('question-modal').classList.add('hidden');
+            exitGame();
+          }, 1200);
+        }
+      }
+    }
+
+    function updateHUD() {
+      const st = getCurrentStudent();
+      const heartsStr = '❤️'.repeat(Math.max(0, st.hearts));
+
+      if (activeGameType === 'dino') {
+        document.getElementById('dino-coins').innerText = st.coins;
+        document.getElementById('dino-points').innerText = st.points;
+        document.getElementById('dino-hearts').innerText = heartsStr;
+      } else if (activeGameType === 'tetris') {
+        document.getElementById('tetris-coins').innerText = st.coins;
+        document.getElementById('tetris-points').innerText = st.points;
+        document.getElementById('tetris-hearts').innerText = heartsStr;
+      }
+    }
+
+    function exitGame() {
+      isDinoRunning = false;
+      activeGameType = null;
+      clearInterval(dinoInterval);
+      showStudentDashboard();
+    }
+
+    // --- מורה ---
+    function showTeacherLogin() { hideAllViews(); document.getElementById('view-teacher-login').classList.remove('hidden'); }
+    function checkTeacherPass() {
+      if (document.getElementById('teacher-pass-input').value === '1234') showTeacherDashboard();
+      else alert('סיסמה שגויה!');
+    }
+    function showTeacherDashboard() {
+      hideAllViews();
+      document.getElementById('view-teacher-dashboard').classList.remove('hidden');
+      const sel = document.getElementById('teacher-student-select');
+      sel.innerHTML = '<option value="">-- בחרי תלמיד/ה --</option>';
+      appData.students.forEach(s => sel.innerHTML += `<option value="${s.id}">${s.name}</option>`);
+    }
+    function addStudent() {
+      const name = document.getElementById('new-student-name').value.trim();
+      if (!name) return;
+      appData.students.push({
+        id: Date.now().toString(), name, points: 0, coins: 50, hearts: 3,
+        bgColor: '#0f172a', equippedSkin: 'classic', unlockedSkins: ['classic'],
+        roomItems: ['lamp_pink'], questions: []
+      });
+      saveData();
+      showTeacherDashboard();
+    }
+    function loadStudentQuestionsForTeacher() {
+      const id = document.getElementById('teacher-student-select').value;
+      const area = document.getElementById('question-management-area');
+      if (!id) { area.classList.add('hidden'); return; }
+      area.classList.remove('hidden');
+      renderTeacherQuestionsList(id);
+    }
+    function renderTeacherQuestionsList(stId) {
+      const st = appData.students.find(s => s.id === stId);
+      const list = document.getElementById('existing-questions-list');
+      list.innerHTML = '';
+      st.questions.forEach((q, idx) => {
+        list.innerHTML += `<div style="background:rgba(255,255,255,0.05); padding:8px; margin-top:5px; border-radius:6px; display:flex; justify-content:space-between;">
+          <div><strong>${q.text}</strong></div>
+          <button class="btn btn-danger" onclick="deleteQuestion('${stId}', ${idx})">מחק</button>
+        </div>`;
+      });
+    }
+    function addQuestionToStudent() {
+      const stId = document.getElementById('teacher-student-select').value;
+      const text = document.getElementById('q-text').value.trim();
+      const o1 = document.getElementById('q-opt1').value.trim();
+      const o2 = document.getElementById('q-opt2').value.trim();
+      const o3 = document.getElementById('q-opt3').value.trim();
+      const o4 = document.getElementById('q-opt4').value.trim();
+      const correct = parseInt(document.getElementById('q-correct').value);
+
+      if (!text || !o1 || !o2) return;
+      const st = appData.students.find(s => s.id === stId);
+      st.questions.push({ text, options: [o1, o2, o3, o4], correct });
+      saveData();
+      renderTeacherQuestionsList(stId);
+    }
+    function deleteQuestion(stId, idx) {
+      const st = appData.students.find(s => s.id === stId);
+      st.questions.splice(idx, 1);
+      saveData();
+      renderTeacherQuestionsList(stId);
+    }
+
+    // התחלה
+    showStudentSelect();
+  </script>
+</body>
+</html>
