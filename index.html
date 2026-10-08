@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>משחק הדינוזאור הלימודי שלי</title>
+  <style>
+    :root {
+      --primary: #4f46e5;
+      --primary-hover: #4338ca;
+      --bg: #f3f4f6;
+      --card-bg: #ffffff;
+      --text: #1f2937;
+      --success: #10b981;
+      --danger: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+
+    header {
+      width: 100%;
+      max-width: 800px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      background: var(--card-bg);
+      padding: 15px 25px;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      color: var(--primary);
+    }
+
+    .btn {
+      background-color: var(--primary);
+      color: white;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: background 0.2s;
+    }
+
+    .btn:hover {
+      background-color: var(--primary-hover);
+    }
+
+    .btn-secondary {
+      background-color: #6b7280;
+    }
+
+    .btn-secondary:hover {
+      background-color: #4b5563;
+    }
+
+    .btn-success {
+      background-color: var(--success);
+    }
+
+    .btn-danger {
+      background-color: var(--danger);
+    }
+
+    .card {
+      background: var(--card-bg);
+      width: 100%;
+      max-width: 800px;
+      padding: 25px;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      margin-bottom: 20px;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* רשימת תלמידים */
+    .student-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 15px;
+      margin-top: 15px;
+    }
+
+    .student-card {
+      border: 2px solid #e5e7eb;
+      padding: 15px;
+      border-radius: 10px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .student-card:hover {
+      border-color: var(--primary);
+      transform: translateY(-2px);
+    }
+
+    /* משחק Canvas */
+    #game-container {
+      position: relative;
+      width: 100%;
+      max-width: 700px;
+      margin: 0 auto;
+    }
+
+    canvas {
+      background-color: #f8fafc;
+      border-bottom: 3px solid #334155;
+      border-radius: 8px 8px 0 0;
+      display: block;
+      width: 100%;
+      height: 250px;
+    }
+
+    .hud {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 15px;
+      background: #1e293b;
+      color: white;
+      border-radius: 0 0 8px 8px;
+      font-weight: bold;
+    }
+
+    /* פופאפ שאלה */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.6);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+    }
+
+    .modal {
+      background: white;
+      padding: 30px;
+      border-radius: 16px;
+      max-width: 500px;
+      width: 90%;
+      text-align: center;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    }
+
+    .options-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 20px;
+    }
+
+    .option-btn {
+      background: #f1f5f9;
+      border: 2px solid #cbd5e1;
+      padding: 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: all 0.2s;
+    }
+
+    .option-btn:hover {
+      background: #e2e8f0;
+      border-color: var(--primary);
+    }
+
+    /* חנות */
+    .shop-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 15px;
+      margin-top: 15px;
+    }
+
+    .shop-item {
+      border: 2px solid #e5e7eb;
+      padding: 15px;
+      border-radius: 10px;
+      text-align: center;
+    }
+
+    .skin-preview {
+      width: 40px;
+      height: 40px;
+      margin: 10px auto;
+      border-radius: 6px;
+    }
+
+    /* טפסים */
+    .form-group {
+      margin-bottom: 15px;
+      text-align: right;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 1rem;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1 id="app-title">🦖 משחק הדינוזאור הלימודי</h1>
+    <div>
+      <button id="nav-teacher-btn" class="btn btn-secondary" onclick="showTeacherLogin()">אזור מורה 🔒</button>
+      <button id="nav-logout-btn" class="btn hidden" onclick="logout()">יציאה לחראשי 🏠</button>
+    </div>
+  </header>
+
+  <!-- מסך בחירת תלמיד -->
+  <div id="view-student-select" class="card">
+    <h2>שלום! מי משחק היום? 😊</h2>
+    <p style="margin-top: 5px; color: #666;">בחרו את השם שלכם כדי להתחיל לרוץ וללמוד:</p>
+    <div id="student-list" class="student-grid"></div>
+  </div>
+
+  <!-- מסך התלמיד (תפריט משחק/חנות) -->
+  <div id="view-student-dashboard" class="card hidden">
+    <h2 id="welcome-student-text">שלום!</h2>
+    <p>נקודות שצברת: <span id="student-score-display" style="font-weight: bold; color: var(--success); font-size: 1.2rem;">0</span> ⭐</p>
+    
+    <div style="display: flex; gap: 15px; margin-top: 20px;">
+      <button class="btn" style="flex: 2; font-size: 1.2rem; padding: 15px;" onclick="startGame()">התחל לשחק! 🎮</button>
+      <button class="btn btn-secondary" style="flex: 1; font-size: 1.1rem;" onclick="openShop()">חנות סקינים 🛍️</button>
+    </div>
+  </div>
+
+  <!-- מסך המשחק -->
+  <div id="view-game" class="card hidden">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+      <h3>לחצו על רווח (Space) או תפחו על המסך כדי לקפוץ!</h3>
+      <button class="btn btn-secondary" onclick="exitGame()">סיים משחק</button>
+    </div>
+    <div id="game-container">
+      <canvas id="gameCanvas" width="700" height="250"></canvas>
+      <div class="hud">
+        <span>נקודות: <span id="game-score">0</span></span>
+        <span>שאלה הבאה בעוד: <span id="game-timer">5</span> שנ'</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- מסך החנות -->
+  <div id="view-shop" class="card hidden">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <h2>חנות סקינים לדינוזאור 🛒</h2>
+      <button class="btn btn-secondary" onclick="showStudentDashboard()">חזרה</button>
+    </div>
+    <p style="margin-top: 5px;">השתמשו בנקודות שצברתם כדי לקנות עיצובים חדשים!</p>
+    <div id="shop-items" class="shop-grid"></div>
+  </div>
+
+  <!-- מסך התחברות מורה -->
+  <div id="view-teacher-login" class="card hidden">
+    <h2>כניסת מורה 🔒</h2>
+    <div class="form-group" style="margin-top: 15px;">
+      <label>סיסמה (ברירת מחדל: 1234):</label>
+      <input type="password" id="teacher-pass-input" placeholder="הכניסי סיסמה">
+    </div>
+    <button class="btn" onclick="checkTeacherPass()">התחברי</button>
+    <button class="btn btn-secondary" onclick="showStudentSelect()">ביטול</button>
+  </div>
+
+  <!-- מסך ניהול מורה -->
+  <div id="view-teacher-dashboard" class="card hidden">
+    <h2>לוח ניהול מורה 👩‍🏫</h2>
+    
+    <!-- הוספת תלמיד -->
+    <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
+      <h3>הוספת תלמיד/ה חדש/ה</h3>
+      <div style="display: flex; gap: 10px; margin-top: 10px;">
+        <input type="text" id="new-student-name" placeholder="שם התלמיד/ה">
+        <button class="btn" onclick="addStudent()">הוסף</button>
+      </div>
+    </div>
+
+    <!-- עריכת שאלות לתלמיד -->
+    <div style="margin-top: 20px;">
+      <h3>ניהול שאלות לפי תלמיד</h3>
+      <div class="form-group" style="margin-top: 10px;">
+        <label>בחרי תלמיד לעריכה:</label>
+        <select id="teacher-student-select" onchange="loadStudentQuestionsForTeacher()"></select>
+      </div>
+
+      <div id="question-management-area" class="hidden">
+        <h4 style="margin-top: 15px;">הוספת שאלה جديدة לתלמיד:</h4>
+        <div class="form-group">
+          <input type="text" id="q-text" placeholder="מה השאלה? (למשל: כמה זה 5 + 3?)">
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <input type="text" id="q-opt1" placeholder="תשובה 1">
+          <input type="text" id="q-opt2" placeholder="תשובה 2">
+          <input type="text" id="q-opt3" placeholder="תשובה 3">
+          <input type="text" id="q-opt4" placeholder="תשובה 4">
+        </div>
+        <div class="form-group" style="margin-top: 10px;">
+          <label>מספר התשובה הנכונה (1-4):</label>
+          <input type="number" id="q-correct" min="1" max="4" value="1">
+        </div>
+        <button class="btn btn-success" onclick="addQuestionToStudent()">שמור שאלה</button>
+
+        <h4 style="margin-top: 25px;">שאלות קיימות לתלמיד זה:</h4>
+        <div id="existing-questions-list" style="margin-top: 10px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- מודאל שאלה בזמן משחק -->
+  <div id="question-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <h2 style="color: var(--primary);">שאלה למחשבה! 🤔</h2>
+      <p id="modal-question-text" style="font-size: 1.3rem; margin: 15px 0; font-weight: bold;"></p>
+      <div id="modal-options" class="options-grid"></div>
+      <p id="modal-feedback" style="margin-top: 15px; font-weight: bold;"></p>
+    </div>
+  </div>
+
+  <script>
+    // --- נתונים ושמירה מקומית ---
+    const SKINS = {
+      classic: { name: 'דינו קלאסי', color: '#22c55e', price: 0 },
+      fire: { name: 'דינו אש 🐉', color: '#ef4444', price: 30 },
+      cyber: { name: 'דינו סייבר ⚡', color: '#a855f7', price: 60 },
+      gold: { name: 'דינו זהב 👑', color: '#eab308', price: 100 }
+    };
+
+    let appData = JSON.parse(localStorage.getItem('dinoGameData')) || {
+      students: [
+        {
+          id: '1',
+          name: 'תלמיד לדוגמה',
+          score: 0,
+          equippedSkin: 'classic',
+          skins: ['classic'],
+          questions: [
+            { text: 'כמה זה 5 + 5?', options: ['8', '10', '12', '15'], correct: 1 },
+            { text: 'איך אומרים "כלב" באנגלית?', options: ['Cat', 'Dog', 'Fish', 'Bird'], correct: 1 }
+          ]
+        }
+      ]
+    };
+
+    let currentStudentId = null;
+    let activeQuestionIndex = 0;
+
+    function saveData() {
+      localStorage.setItem('dinoGameData', JSON.stringify(appData));
+    }
+
+    // --- ניווט בין מסכים ---
+    function hideAllViews() {
+      document.querySelectorAll('.card').forEach(c => c.classList.add('hidden'));
+    }
+
+    function showStudentSelect() {
+      hideAllViews();
+      document.getElementById('view-student-select').classList.remove('hidden');
+      document.getElementById('nav-logout-btn').classList.add('hidden');
+      document.getElementById('nav-teacher-btn').classList.remove('hidden');
+      renderStudentList();
+    }
+
+    function renderStudentList() {
+      const list = document.getElementById('student-list');
+      list.innerHTML = '';
+      appData.students.forEach(st => {
+        const div = document.createElement('div');
+        div.className = 'student-card';
+        div.innerHTML = `<h3>${st.name}</h3><p>⭐ ${st.score} נקודות</p>`;
+        div.onclick = () => selectStudent(st.id);
+        list.appendChild(div);
+      });
+    }
+
+    function selectStudent(id) {
+      currentStudentId = id;
+      showStudentDashboard();
+    }
+
+    function showStudentDashboard() {
+      hideAllViews();
+      const st = getCurrentStudent();
+      document.getElementById('welcome-student-text').innerText = `שלום, ${st.name}! 👋`;
+      document.getElementById('student-score-display').innerText = st.score;
+      document.getElementById('view-student-dashboard').classList.remove('hidden');
+      document.getElementById('nav-logout-btn').classList.remove('hidden');
+    }
+
+    function getCurrentStudent() {
+      return appData.students.find(s => s.id === currentStudentId);
+    }
+
+    function logout() {
+      currentStudentId = null;
+      showStudentSelect();
+    }
+
+    // --- אזור מורה ---
+    function showTeacherLogin() {
+      hideAllViews();
+      document.getElementById('view-teacher-login').classList.remove('hidden');
+    }
+
+    function checkTeacherPass() {
+      const pass = document.getElementById('teacher-pass-input').value;
+      if (pass === '1234') { // סיסמה פשוטה למורה
+        showTeacherDashboard();
+      } else {
+        alert('סיסמה שגויה!');
+      }
+    }
+
+    function showTeacherDashboard() {
+      hideAllViews();
+      document.getElementById('view-teacher-dashboard').classList.remove('hidden');
+      document.getElementById('nav-logout-btn').classList.remove('hidden');
+      
+      const select = document.getElementById('teacher-student-select');
+      select.innerHTML = '<option value="">-- בחרי תלמיד --</option>';
+      appData.students.forEach(st => {
+        select.innerHTML += `<option value="${st.id}">${st.name}</option>`;
+      });
+    }
+
+    function addStudent() {
+      const name = document.getElementById('new-student-name').value.trim();
+      if (!name) return;
+      const newSt = {
+        id: Date.now().toString(),
+        name: name,
+        score: 0,
+        equippedSkin: 'classic',
+        skins: ['classic'],
+        questions: []
+      };
+      appData.students.push(newSt);
+      saveData();
+      document.getElementById('new-student-name').value = '';
+      showTeacherDashboard();
+      alert('תלמיד נוסף בהצלחה!');
+    }
+
+    function loadStudentQuestionsForTeacher() {
+      const id = document.getElementById('teacher-student-select').value;
+      const area = document.getElementById('question-management-area');
+      if (!id) {
+        area.classList.add('hidden');
+        return;
+      }
+      area.classList.remove('hidden');
+      renderTeacherQuestionsList(id);
+    }
+
+    function renderTeacherQuestionsList(stId) {
+      const st = appData.students.find(s => s.id === stId);
+      const list = document.getElementById('existing-questions-list');
+      list.innerHTML = '';
+      if (st.questions.length === 0) {
+        list.innerHTML = '<p>אין שאלות מוגדרות לתלמיד זה עדיין.</p>';
+        return;
+      }
+      st.questions.forEach((q, idx) => {
+        list.innerHTML += `
+          <div style="background: #fff; border: 1px solid #ddd; padding: 10px; margin-bottom: 8px; border-radius: 6px; display: flex; justify-content: space-between;">
+            <div>
+              <strong>${idx + 1}. ${q.text}</strong><br>
+              <small>תשובה נכונה: ${q.options[q.correct - 1]}</small>
+            </div>
+            <button class="btn btn-danger" onclick="deleteQuestion('${stId}', ${idx})">מחק</button>
+          </div>
+        `;
+      });
+    }
+
+    function addQuestionToStudent() {
+      const stId = document.getElementById('teacher-student-select').value;
+      const text = document.getElementById('q-text').value.trim();
+      const o1 = document.getElementById('q-opt1').value.trim();
+      const o2 = document.getElementById('q-opt2').value.trim();
+      const o3 = document.getElementById('q-opt3').value.trim();
+      const o4 = document.getElementById('q-opt4').value.trim();
+      const correct = parseInt(document.getElementById('q-correct').value);
+
+      if (!text || !o1 || !o2 || !o3 || !o4) {
+        alert('אנא מילאי את כל השדות!');
+        return;
+      }
+
+      const st = appData.students.find(s => s.id === stId);
+      st.questions.push({
+        text, options: [o1, o2, o3, o4], correct
+      });
+      saveData();
+
+      document.getElementById('q-text').value = '';
+      document.getElementById('q-opt1').value = '';
+      document.getElementById('q-opt2').value = '';
+      document.getElementById('q-opt3').value = '';
+      document.getElementById('q-opt4').value = '';
+      renderTeacherQuestionsList(stId);
+    }
+
+    function deleteQuestion(stId, idx) {
+      const st = appData.students.find(s => s.id === stId);
+      st.questions.splice(idx, 1);
+      saveData();
+      renderTeacherQuestionsList(stId);
+    }
+
+    // --- חנות סקינים ---
+    function openShop() {
+      hideAllViews();
+      document.getElementById('view-shop').classList.remove('hidden');
+      const st = getCurrentStudent();
+      const grid = document.getElementById('shop-items');
+      grid.innerHTML = '';
+
+      Object.keys(SKINS).forEach(key => {
+        const skin = SKINS[key];
+        const hasSkin = st.skins.includes(key);
+        const isEquipped = st.equippedSkin === key;
+
+        let btnText = 'קנה';
+        let btnClass = 'btn';
+        let action = `buySkin('${key}')`;
+
+        if (isEquipped) {
+          btnText = 'בשימוש ✔️';
+          btnClass = 'btn btn-secondary';
+          action = '';
+        } else if (hasSkin) {
+          btnText = 'לבש 👕';
+          btnClass = 'btn btn-success';
+          action = `equipSkin('${key}')`;
+        }
+
+        grid.innerHTML += `
+          <div class="shop-item">
+            <h4>${skin.name}</h4>
+            <div class="skin-preview" style="background-color: ${skin.color}"></div>
+            <p>מחיר: ${skin.price} ⭐</p>
+            <button class="${btnClass}" style="margin-top: 10px; width: 100%;" onclick="${action}" ${isEquipped ? 'disabled' : ''}>${btnText}</button>
+          </div>
+        `;
+      });
+    }
+
+    function buySkin(key) {
+      const st = getCurrentStudent();
+      const skin = SKINS[key];
+      if (st.score >= skin.price) {
+        st.score -= skin.price;
+        st.skins.push(key);
+        st.equippedSkin = key;
+        saveData();
+        openShop();
+        alert('תתחדש! הקנייה בוצעה בהצלחה 🎉');
+      } else {
+        alert('אין לך מספיק נקודות!');
+      }
+    }
+
+    function equipSkin(key) {
+      const st = getCurrentStudent();
+      st.equippedSkin = key;
+      saveData();
+      openShop();
+    }
+
+    // --- מנוע המשחק (Canvas Dino) ---
+    let canvas, ctx;
+    let isRunning = false;
+    let isPausedForQuestion = false;
+    let score = 0;
+    let timerCountdown = 5;
+    let timerInterval = null;
+
+    let dino = { x: 50, y: 180, w: 30, h: 40, vy: 0, gravity: 0.8, isJumping: false };
+    let obstacles = [];
+    let frameCount = 0;
+
+    function startGame() {
+      const st = getCurrentStudent();
+      if (!st.questions || st.questions.length === 0) {
+        alert('עדיין אין שאלות מוגדרות לתלמיד זה! המורה צריכה להוסיף שאלות באזור מורה.');
+        return;
+      }
+
+      hideAllViews();
+      document.getElementById('view-game').classList.remove('hidden');
+      
+      canvas = document.getElementById('gameCanvas');
+      ctx = canvas.getContext('2d');
+
+      // איפוס משחק
+      dino.y = 180;
+      dino.vy = 0;
+      dino.isJumping = false;
+      obstacles = [];
+      score = st.score;
+      document.getElementById('game-score').innerText = score;
+
+      isRunning = true;
+      isPausedForQuestion = false;
+
+      resetTimer();
+
+      window.addEventListener('keydown', handleJump);
+      canvas.addEventListener('touchstart', handleJump);
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    function handleJump(e) {
+      if ((e.code === 'Space' || e.type === 'touchstart') && !dino.isJumping && isRunning && !isPausedForQuestion) {
+        dino.vy = -13;
+        dino.isJumping = true;
+      }
+    }
+
+    function resetTimer() {
+      clearInterval(timerInterval);
+      timerCountdown = 5;
+      document.getElementById('game-timer').innerText = timerCountdown;
+      
+      timerInterval = setInterval(() => {
+        if (!isPausedForQuestion && isRunning) {
+          timerCountdown--;
+          document.getElementById('game-timer').innerText = timerCountdown;
+          if (timerCountdown <= 0) {
+            triggerQuestion();
+          }
+        }
+      }, 1000);
+    }
+
+    function triggerQuestion() {
+      isPausedForQuestion = true;
+      const st = getCurrentStudent();
+      
+      // בחירת שאלה אקראית
+      const qIndex = Math.floor(Math.random() * st.questions.length);
+      activeQuestionIndex = qIndex;
+      const q = st.questions[qIndex];
+
+      document.getElementById('modal-question-text').innerText = q.text;
+      document.getElementById('modal-feedback').innerText = '';
+      
+      const optsDiv = document.getElementById('modal-options');
+      optsDiv.innerHTML = '';
+      q.options.forEach((opt, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'option-btn';
+        btn.innerText = opt;
+        btn.onclick = () => answerQuestion(i + 1);
+        optsDiv.appendChild(btn);
+      });
+
+      document.getElementById('question-modal').classList.remove('hidden');
+    }
+
+    function answerQuestion(selected) {
+      const st = getCurrentStudent();
+      const q = st.questions[activeQuestionIndex];
+      const feedback = document.getElementById('modal-feedback');
+
+      if (selected === q.correct) {
+        feedback.style.color = 'var(--success)';
+        feedback.innerText = 'נכון מאוד! 🎉 (+10 נקודות)';
+        st.score += 10;
+        score = st.score;
+        document.getElementById('game-score').innerText = score;
+        saveData();
+
+        setTimeout(() => {
+          document.getElementById('question-modal').classList.add('hidden');
+          isPausedForQuestion = false;
+          resetTimer();
+        }, 1200);
+      } else {
+        feedback.style.color = 'var(--danger)';
+        feedback.innerText = 'תשובה לא נכונה, נסה שוב!';
+      }
+    }
+
+    function gameLoop() {
+      if (!isRunning) return;
+
+      if (!isPausedForQuestion) {
+        updateGame();
+        drawGame();
+      }
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    function updateGame() {
+      // פיזיקה לדינוזאור
+      dino.vy += dino.gravity;
+      dino.y += dino.vy;
+
+      if (dino.y >= 180) {
+        dino.y = 180;
+        dino.vy = 0;
+        dino.isJumping = false;
+      }
+
+      // ייצור מכשולים
+      frameCount++;
+      if (frameCount % 120 === 0) {
+        obstacles.push({ x: canvas.width, w: 20, h: 35 });
+      }
+
+      // הזזת מכשולים ובדיקת התנגשות
+      for (let i = 0; i < obstacles.length; i++) {
+        obstacles[i].x -= 5;
+
+        // התנגשות
+        if (
+          dino.x < obstacles[i].x + obstacles[i].w &&
+          dino.x + dino.w > obstacles[i].x &&
+          dino.y < 180 && dino.y + dino.h > 180 - obstacles[i].h + 20
+        ) {
+          // פסילה - המשחק רק מאתס מיקום
+          obstacles[i].x = -100;
+        }
+      }
+
+      // ניקוי מכשולים שיצאו
+      obstacles = obstacles.filter(o => o.x > -30);
+    }
+
+    function drawGame() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // קרקע
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillRect(0, 220, canvas.width, 30);
+
+      // דינוזאור
+      const st = getCurrentStudent();
+      const skinKey = st ? st.equippedSkin : 'classic';
+      ctx.fillStyle = SKINS[skinKey] ? SKINS[skinKey].color : '#22c55e';
+      ctx.fillRect(dino.x, dino.y, dino.w, dino.h);
+
+      // עין לדינוזאור
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(dino.x + 20, dino.y + 5, 5, 5);
+
+      // מכשולים (שיחים)
+      ctx.fillStyle = '#475569';
+      obstacles.forEach(o => {
+        ctx.fillRect(o.x, 220 - o.h, o.w, o.h);
+      });
+    }
+
+    function exitGame() {
+      isRunning = false;
+      clearInterval(timerInterval);
+      window.removeEventListener('keydown', handleJump);
+      showStudentDashboard();
+    }
+
+    // הפעלה ראשונית
+    showStudentSelect();
+  </script>
+</body>
+</html>
