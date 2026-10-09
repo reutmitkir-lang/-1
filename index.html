@@ -187,13 +187,23 @@
       transition: width 0.4s ease;
     }
 
-    /* מפת איים קסומים */
+    /* מפת 50 עולמות */
     .islands-map-container {
       background: rgba(10, 5, 24, 0.6);
       border: 1px solid rgba(168, 85, 247, 0.3);
       border-radius: 22px;
       padding: 20px;
       margin: 20px 0;
+      max-height: 380px;
+      overflow-y: auto;
+    }
+
+    .islands-map-container::-webkit-scrollbar {
+      width: 8px;
+    }
+    .islands-map-container::-webkit-scrollbar-thumb {
+      background: var(--primary-glow);
+      border-radius: 10px;
     }
 
     .map-title {
@@ -202,12 +212,18 @@
       color: var(--accent-gold);
       margin-bottom: 15px;
       text-align: center;
+      position: sticky;
+      top: 0;
+      background: rgba(10, 5, 24, 0.95);
+      padding: 8px;
+      border-radius: 10px;
+      z-index: 5;
     }
 
     .islands-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 16px;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 14px;
     }
 
     .island-card {
@@ -215,7 +231,7 @@
       background: rgba(255, 255, 255, 0.04);
       border: 2px solid rgba(255, 255, 255, 0.15);
       border-radius: 18px;
-      padding: 16px;
+      padding: 14px;
       text-align: center;
       transition: all 0.3s ease;
     }
@@ -227,22 +243,22 @@
     }
 
     .island-card.locked {
-      opacity: 0.55;
-      filter: grayscale(0.8);
+      opacity: 0.5;
+      filter: grayscale(0.85);
     }
 
     .island-icon {
-      font-size: 2.5rem;
-      margin-bottom: 8px;
+      font-size: 2.2rem;
+      margin-bottom: 6px;
     }
 
     .island-name {
       font-weight: bold;
-      font-size: 1rem;
+      font-size: 0.9rem;
     }
 
     .island-status {
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       margin-top: 6px;
       font-weight: bold;
     }
@@ -462,9 +478,9 @@
       </div>
     </div>
 
-    <!-- מפת איים קסומים -->
+    <!-- מפת 50 עולמות -->
     <div class="islands-map-container">
-      <div class="map-title">🗺️ מפת עולמות האיים הקסומים</div>
+      <div class="map-title">🗺️ מפת עולמות האיים הקסומים (50 עולמות)</div>
       <div id="islands-map-grid" class="islands-grid"></div>
     </div>
 
@@ -583,6 +599,7 @@
   <!-- לוח ניהול מורה -->
   <div id="view-teacher-dashboard" class="card hidden">
     <h2>לוח ניהול מורה 👩‍🏫</h2>
+    
     <div style="background: rgba(0,0,0,0.25); padding: 18px; border-radius: 16px; margin: 15px 0;">
       <h3>הוספת תלמיד/ה חדש/ה</h3>
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px;">
@@ -593,11 +610,22 @@
     </div>
 
     <div style="margin-top: 20px;">
-      <h3>ניהול שאלות לתלמיד/ה</h3>
+      <h3>ניהול שאלות ופתיחת עולמות לתלמיד/ה</h3>
       <select id="teacher-student-select" onchange="loadStudentQuestionsForTeacher()"></select>
 
       <div id="question-management-area" class="hidden" style="margin-top: 15px;">
         <p id="selected-student-info" style="color: var(--accent-gold); font-weight: bold; margin-bottom: 10px;"></p>
+        
+        <!-- כלי דילוג עולמות מיוחד למורה למטרת עיצוב ובדיקות -->
+        <div style="background: rgba(168, 85, 247, 0.15); padding: 16px; border-radius: 16px; margin-bottom: 20px; border: 1.5px solid var(--accent-gold);">
+          <h4>🚀 דילוג ופתיחת עולמות לבדיקה ועיצוב:</h4>
+          <p style="font-size:0.85rem; color:var(--text-muted); margin-top:4px;">בחרי עולם מתוך 50 העולמות כדי להעביר אליו את התלמיד/ה הנבחר/ת ולראות את העיצובים והחנות שמתבלטים בו.</p>
+          <div style="display: flex; gap: 10px; align-items: center; margin-top: 10px;">
+            <select id="teacher-world-select" style="flex: 1; margin:0;"></select>
+            <button class="btn btn-success" onclick="setStudentWorldByTeacher()">פתח עולם זה ✨</button>
+          </div>
+        </div>
+
         <h4>הוספת שאלה חדשה:</h4>
         <input type="text" id="q-text" placeholder="מה השאלה?">
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px;">
@@ -643,43 +671,73 @@
   <script>
     const QUESTION_INTERVAL_TIME = 14; 
 
-    const WORLDS = [
-      { id: 1, name: 'אי 1: יער המסתורין 🌲', icon: '🌲', minPoints: 0 },
-      { id: 2, name: 'אי 2: מדבר הדרקונים 🏜️', icon: '🏜️', minPoints: 300 },
-      { id: 3, name: 'אי 3: הממלכה הקפואה ❄️', icon: '❄️', minPoints: 600 },
-      { id: 4, name: 'אי 4: גלקסיית הכוכבים 🌌', icon: '🌌', minPoints: 900 }
+    // --- יצירת 50 עולמות קסומים במערך ---
+    const BASE_WORLDS_DATA = [
+      { name: 'יער המסתורין', icon: '🌲' },
+      { name: 'מדבר הדרקונים', icon: '🏜️' },
+      { name: 'הממלכה הקפואה', icon: '❄️' },
+      { name: 'גלקסיית הכוכבים', icon: '🌌' },
+      { name: 'הר הגעש הלוהט', icon: '🌋' },
+      { name: 'עמק הפיות הקסום', icon: '🧚‍♀️' },
+      { name: 'אי העננים המרחפים', icon: '☁️' },
+      { name: 'מקדש השמש המוזהב', icon: '☀️' },
+      { name: 'מצולות הים האבודות', icon: '🌊' },
+      { name: 'מערת הקריסטלים', icon: '🔮' },
+      { name: 'טירת הצללים', icon: '🏰' },
+      { name: 'ממלכת הממתקים', icon: '🍬' },
+      { name: 'ג\'ונגל הדינוזאורים', icon: '🦖' },
+      { name: 'סוואנת הזהב', icon: '🦁' },
+      { name: 'עיר הסייבר העתידנית', icon: '🤖' },
+      { name: 'נווה המדבר הקסום', icon: '🌴' },
+      { name: 'מגדל האלכימאים', icon: '🧪' },
+      { name: 'אגם הפנינים', icon: '🦪' },
+      { name: 'עולם הקשת בענן', icon: '🌈' },
+      { name: 'מבוך הדרקונים', icon: '🐉' }
     ];
 
-    // --- חנות מעודכנת: 22 פריטים עם נעילת שלבים ומחירים יקרים לחדר ---
+    const WORLDS = [];
+    for (let i = 1; i <= 50; i++) {
+      const baseObj = BASE_WORLDS_DATA[(i - 1) % BASE_WORLDS_DATA.length];
+      const cycle = Math.floor((i - 1) / BASE_WORLDS_DATA.length);
+      const suffix = cycle > 0 ? ` ${'★'.repeat(cycle)}` : '';
+      WORLDS.push({
+        id: i,
+        name: `אי ${i}: ${baseObj.name}${suffix}`,
+        icon: baseObj.icon,
+        minPoints: (i - 1) * 300
+      });
+    }
+
+    // --- חנות מעודכנת ---
     const SKINS = {
       classic: { name: 'דרקון ירוק קלאסי 🐉', price: 0, level: 1, colorStart: '#10b981', colorEnd: '#059669' },
       fire: { name: 'דרקון אש זהוב 🐲🔥', price: 50, level: 1, colorStart: '#fbbf24', colorEnd: '#d97706' },
-      water: { name: 'דרקון מים תכול 🌊🐉', price: 80, level: 1, colorStart: '#3b82f6', colorEnd: '#1d4ed8' },
-      hat_crown: { name: 'דרקון המלך עם כתר 👑', price: 150, level: 2, colorStart: '#a855f7', colorEnd: '#7c3aed' },
-      ninja: { name: 'דרקון נינג\'ה 🥷🐉', price: 200, level: 2, colorStart: '#334155', colorEnd: '#0f172a' },
-      cosmic: { name: 'דרקון קוסמי סגול 🌌', price: 300, level: 2, colorStart: '#ec4899', colorEnd: '#be185d' },
-      ice: { name: 'דרקון קרח מושלג ❄️🐲', price: 400, level: 3, colorStart: '#38bdf8', colorEnd: '#0284c7' },
-      cyber: { name: 'דרקון סייבר 🤖🐉', price: 550, level: 3, colorStart: '#06b6d4', colorEnd: '#0891b2' },
-      golden: { name: 'דרקון זהב מלכותי 🌟🐲', price: 750, level: 4, colorStart: '#f59e0b', colorEnd: '#b45309' },
-      rainbow: { name: 'דרקון הקשת בענן 🌈🐉', price: 1000, level: 4, colorStart: '#8b5cf6', colorEnd: '#ec4899' }
+      water: { name: 'דרקון מים תכול 🌊🐉', price: 80, level: 2, colorStart: '#3b82f6', colorEnd: '#1d4ed8' },
+      hat_crown: { name: 'דרקון המלך עם כתר 👑', price: 150, level: 3, colorStart: '#a855f7', colorEnd: '#7c3aed' },
+      ninja: { name: 'דרקון נינג\'ה 🥷🐉', price: 200, level: 5, colorStart: '#334155', colorEnd: '#0f172a' },
+      cosmic: { name: 'דרקון קוסמי סגול 🌌', price: 300, level: 8, colorStart: '#ec4899', colorEnd: '#be185d' },
+      ice: { name: 'דרקון קרח מושלג ❄️🐲', price: 400, level: 12, colorStart: '#38bdf8', colorEnd: '#0284c7' },
+      cyber: { name: 'דרקון סייבר 🤖🐉', price: 550, level: 20, colorStart: '#06b6d4', colorEnd: '#0891b2' },
+      golden: { name: 'דרקון זהב מלכותי 🌟🐲', price: 750, level: 35, colorStart: '#f59e0b', colorEnd: '#b45309' },
+      rainbow: { name: 'דרקון הקשת בענן 🌈🐉', price: 1000, level: 50, colorStart: '#8b5cf6', colorEnd: '#ec4899' }
     };
 
     const ROOM_ITEMS = {
       lamp_pink: { name: 'מנורת ניאון ורודה 💡', price: 150, level: 1 },
-      poster_dragon: { name: 'פוסטר דרקון אגדי 🖼️', price: 250, level: 1 },
-      magic_carpet: { name: 'שטיח קסמים מעופף 🧹', price: 400, level: 1 },
-      capybara_cute: { name: 'חבר קפיברה 🦫', price: 600, level: 2 },
-      gaming_chair: { name: 'כיסא גיימינג זוהר 🪑', price: 850, level: 2 },
-      crystal_statue: { name: 'פסל קריסטל סגול 🔮', price: 1100, level: 2 },
-      throne: { name: 'כס מלכות מוזהב 👑', price: 1500, level: 3 },
-      aquarium: { name: 'אקווריום דגי זהב 🐟', price: 2000, level: 3 },
-      arcade_machine: { name: 'מכונת ארקייד רטרו 🕹️', price: 2800, level: 3 },
-      treasure_chest: { name: 'תיבת אוצר עמוסה 🪙', price: 3500, level: 4 },
-      hologram_globe: { name: 'גלובוס הולוגרמה 🌐', price: 4500, level: 4 },
-      dragon_egg_nest: { name: 'קן ביצת דרקון 🥚✨', price: 6000, level: 4 }
+      poster_dragon: { name: 'פוסטר דרקון אגדי 🖼️', price: 250, level: 2 },
+      magic_carpet: { name: 'שטיח קסמים מעופף 🧹', price: 400, level: 3 },
+      capybara_cute: { name: 'חבר קפיברה 🦫', price: 600, level: 4 },
+      gaming_chair: { name: 'כיסא גיימינג זוהר 🪑', price: 850, level: 6 },
+      crystal_statue: { name: 'פסל קריסטל סגול 🔮', price: 1100, level: 10 },
+      throne: { name: 'כס מלכות מוזהב 👑', price: 1500, level: 15 },
+      aquarium: { name: 'אקווריום דגי זהב 🐟', price: 2000, level: 22 },
+      arcade_machine: { name: 'מכונת ארקייד רטרו 🕹️', price: 2800, level: 30 },
+      treasure_chest: { name: 'תיבת אוצר עמוסה 🪙', price: 3500, level: 40 },
+      hologram_globe: { name: 'גלובוס הולוגרמה 🌐', price: 4500, level: 45 },
+      dragon_egg_nest: { name: 'קן ביצת דרקון 🥚✨', price: 6000, level: 50 }
     };
 
-    let appData = JSON.parse(localStorage.getItem('dragonAcademyDataV2')) || {
+    let appData = JSON.parse(localStorage.getItem('dragonAcademyDataV3')) || {
       teacherPass: null,
       students: [
         {
@@ -709,7 +767,7 @@
     let questionAttemptCount = 0;
 
     function saveData() {
-      localStorage.setItem('dragonAcademyDataV2', JSON.stringify(appData));
+      localStorage.setItem('dragonAcademyDataV3', JSON.stringify(appData));
     }
 
     function getCurrentStudent() {
@@ -820,10 +878,7 @@
       ctx.clearRect(0, 0, 130, 130);
 
       const level = Math.floor(points / 300) + 1;
-      let name = "דרקון קסם צעיר 🐣";
-      if (level === 2) name = "דרקון הלהבות ✨";
-      if (level === 3) name = "דרקון הממלכה המלכותי 👑";
-      if (level >= 4) name = "דרקון הכוכבים הקוסמי 🌌";
+      let name = `דרקון עולם ${level} 🐉`;
       document.getElementById('pet-name').innerText = name;
 
       const glowGrad = ctx.createRadialGradient(65, 60, 10, 65, 60, 55);
@@ -837,8 +892,8 @@
       ctx.beginPath(); ctx.moveTo(95, 65); ctx.lineTo(120, 40); ctx.lineTo(105, 80); ctx.fill();
 
       const bodyGrad = ctx.createLinearGradient(0, 30, 0, 100);
-      bodyGrad.addColorStop(0, level >= 4 ? '#ec4899' : (level >= 3 ? '#fbbf24' : '#34d399'));
-      bodyGrad.addColorStop(1, level >= 4 ? '#be185d' : (level >= 3 ? '#d97706' : '#059669'));
+      bodyGrad.addColorStop(0, level >= 10 ? '#ec4899' : (level >= 5 ? '#fbbf24' : '#34d399'));
+      bodyGrad.addColorStop(1, level >= 10 ? '#be185d' : (level >= 5 ? '#d97706' : '#059669'));
       ctx.fillStyle = bodyGrad;
       
       ctx.beginPath(); ctx.arc(65, 75, 28, 0, Math.PI * 2); ctx.fill();
@@ -1274,7 +1329,7 @@
       }
     }
 
-    // --- משחק 3 מעודכן: תפוס את הכדורים (תדירות נמוכה, +1 מטבע בתפיסה, -1 חיים בפספוס) ---
+    // משחק 3: תפוס את הכדורים (תדירות נמוכה, +1 מטבע בתפיסה, -1 חיים בפספוס)
     let basket = { x: 300, y: 260, w: 90, h: 22, speed: 7.5 };
     let fallingBalls = [];
     let caughtCount = 0;
@@ -1313,7 +1368,6 @@
         if (keysPressed['ArrowLeft']) moveBasket(-basket.speed);
         if (keysPressed['ArrowRight']) moveBasket(basket.speed);
 
-        // תדירות נוחה ונמוכה יותר לכדורים
         if (Math.random() < 0.015 && fallingBalls.length < 3) {
           fallingBalls.push({
             x: Math.random() * 640 + 30,
@@ -1328,7 +1382,6 @@
           let b = fallingBalls[i];
           b.y += b.speed;
 
-          // תפיסה בסל = +1 מטבע
           if (b.y + b.r >= basket.y && b.y - b.r <= basket.y + basket.h && b.x >= basket.x && b.x <= basket.x + basket.w) {
             fallingBalls.splice(i, 1);
             i--;
@@ -1346,7 +1399,6 @@
               triggerQuestionModal();
             }
           } 
-          // פספוס כדור = -1 חיים
           else if (b.y > 300) {
             fallingBalls.splice(i, 1);
             i--;
@@ -1494,7 +1546,7 @@
       showStudentDashboard();
     }
 
-    // אזור מורה
+    // --- אזור מורה ---
     function showTeacherLogin() {
       hideAllViews();
       document.getElementById('view-teacher-login').classList.remove('hidden');
@@ -1536,6 +1588,32 @@
       hideAllViews();
       document.getElementById('view-teacher-dashboard').classList.remove('hidden');
       loadTeacherStudentSelect();
+      populateTeacherWorldSelect();
+    }
+
+    function populateTeacherWorldSelect() {
+      const worldSelect = document.getElementById('teacher-world-select');
+      worldSelect.innerHTML = '';
+      WORLDS.forEach(w => {
+        worldSelect.innerHTML += `<option value="${w.id}">${w.name} (${w.minPoints} נקודות)</option>`;
+      });
+    }
+
+    function setStudentWorldByTeacher() {
+      const studentId = document.getElementById('teacher-student-select').value;
+      const targetWorldId = parseInt(document.getElementById('teacher-world-select').value);
+
+      if (!studentId) return alert('נא לבחור תלמיד/ה!');
+
+      const st = appData.students.find(s => s.id === studentId);
+      const targetWorld = WORLDS.find(w => w.id === targetWorldId);
+
+      if (st && targetWorld) {
+        st.points = targetWorld.minPoints;
+        saveData();
+        alert(`התלמיד/ה ${st.name} עבר/ה בהצלחה לעולם ${targetWorldId} (${targetWorld.name})! 🎉`);
+        loadStudentQuestionsForTeacher();
+      }
     }
 
     function loadTeacherStudentSelect() {
@@ -1556,7 +1634,8 @@
       }
 
       const st = appData.students.find(s => s.id === studentId);
-      document.getElementById('selected-student-info').innerText = `תלמיד/ה: ${st.name} | קוד כניסה אישי: ${st.pin}`;
+      const currentLevel = Math.floor(st.points / 300) + 1;
+      document.getElementById('selected-student-info').innerText = `תלמיד/ה: ${st.name} | קוד: ${st.pin} | עולם נוכחי: ${currentLevel} (⭐ ${st.points} נקודות)`;
 
       qArea.classList.remove('hidden');
       renderQuestionsList(studentId);
