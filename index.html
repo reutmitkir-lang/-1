@@ -495,7 +495,7 @@
       <button class="btn" onclick="startDinoGame()">ריצת הדרקון 🦖</button>
       <button class="btn" onclick="startTetrisGame()">טטריס הקסם 🧩</button>
       <button class="btn" style="background: linear-gradient(135deg, #ec4899, #be185d);" onclick="startCatchGame()">תפוס את הכדורים 🥎</button>
-      <button class="btn btn-success" onclick="openRoom()">החדר המלכותי 🏰</button>
+      <button class="btn btn-success" onclick="openRoom()">עיצוב העולמות 🎨</button>
       <button class="btn btn-secondary" onclick="openShop()">חנות 🛍️</button>
     </div>
   </div>
@@ -558,11 +558,15 @@
     </div>
   </div>
 
-  <!-- חדר תלמיד -->
+  <!-- מסך עיצוב העולמות (משודרג לכל עולם שנפתח!) -->
   <div id="view-room" class="card hidden">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-      <h2>החדר המלכותי שלי 🏰</h2>
+      <h2>עיצוב העולמות שלי 🎨</h2>
       <button class="btn btn-secondary" onclick="showStudentDashboard()">חזרה</button>
+    </div>
+    <div style="margin-bottom: 12px;">
+      <label style="font-weight: bold; color: var(--accent-gold);">בחר/י עולם פתוח לעיצוב והצגה:</label>
+      <select id="world-decor-select" onchange="drawRoom()"></select>
     </div>
     <div class="game-wrapper">
       <canvas id="roomCanvas" width="600" height="350"></canvas>
@@ -577,7 +581,7 @@
     </div>
     <div class="shop-tabs">
       <button id="tab-skins-btn" class="tab-btn active" onclick="switchShopTab('skins')">סקינים לדרקון 🐉</button>
-      <button id="tab-room-btn" class="tab-btn" onclick="switchShopTab('room')">דברים לחדר 🛋️</button>
+      <button id="tab-room-btn" class="tab-btn" onclick="switchShopTab('room')">חפצים ועיצוב 🛋️</button>
     </div>
     <div id="shop-items-grid" class="shop-grid"></div>
   </div>
@@ -616,10 +620,10 @@
       <div id="question-management-area" class="hidden" style="margin-top: 15px;">
         <p id="selected-student-info" style="color: var(--accent-gold); font-weight: bold; margin-bottom: 10px;"></p>
         
-        <!-- כלי דילוג עולמות מיוחד למורה למטרת עיצוב ובדיקות -->
+        <!-- כלי דילוג עולמות למורה -->
         <div style="background: rgba(168, 85, 247, 0.15); padding: 16px; border-radius: 16px; margin-bottom: 20px; border: 1.5px solid var(--accent-gold);">
           <h4>🚀 דילוג ופתיחת עולמות לבדיקה ועיצוב:</h4>
-          <p style="font-size:0.85rem; color:var(--text-muted); margin-top:4px;">בחרי עולם מתוך 50 העולמות כדי להעביר אליו את התלמיד/ה הנבחר/ת ולראות את העיצובים והחנות שמתבלטים בו.</p>
+          <p style="font-size:0.85rem; color:var(--text-muted); margin-top:4px;">בחרי עולם מתוך 50 העולמות כדי להעביר אליו את התלמיד/ה הנבחר/ת ולראות את העיצובים והחנות שלו.</p>
           <div style="display: flex; gap: 10px; align-items: center; margin-top: 10px;">
             <select id="teacher-world-select" style="flex: 1; margin:0;"></select>
             <button class="btn btn-success" onclick="setStudentWorldByTeacher()">פתח עולם זה ✨</button>
@@ -671,7 +675,13 @@
   <script>
     const QUESTION_INTERVAL_TIME = 14; 
 
-    // --- יצירת 50 עולמות קסומים במערך ---
+    // --- טעינת תמונות המשחק ---
+    const dragonImg = new Image(); dragonImg.src = 'dragon.png';
+    const dinoImg = new Image(); dinoImg.src = 'dino.png';
+    const capybaraImg = new Image(); capybaraImg.src = 'capybara.png';
+    const forestImg = new Image(); forestImg.src = 'forest.png'; // תמונת עולם 1: יער המסתורין
+
+    // --- יצירת 50 עולמות קסומים ---
     const BASE_WORLDS_DATA = [
       { name: 'יער המסתורין', icon: '🌲' },
       { name: 'מדבר הדרקונים', icon: '🏜️' },
@@ -737,7 +747,7 @@
       dragon_egg_nest: { name: 'קן ביצת דרקון 🥚✨', price: 6000, level: 50 }
     };
 
-    let appData = JSON.parse(localStorage.getItem('dragonAcademyDataV3')) || {
+    let appData = JSON.parse(localStorage.getItem('dragonAcademyDataV4')) || {
       teacherPass: null,
       students: [
         {
@@ -749,7 +759,7 @@
           hearts: 3,
           equippedSkin: 'classic',
           unlockedSkins: ['classic'],
-          roomItems: ['lamp_pink'],
+          roomItems: ['lamp_pink', 'capybara_cute'],
           questions: [
             { text: 'כמה זה 6 + 4?', options: ['8', '10', '12', '14'], correct: 2 },
             { text: 'איך אומרים "שמש" באנגלית?', options: ['Moon', 'Sun', 'Star', 'Sky'], correct: 2 },
@@ -767,7 +777,7 @@
     let questionAttemptCount = 0;
 
     function saveData() {
-      localStorage.setItem('dragonAcademyDataV3', JSON.stringify(appData));
+      localStorage.setItem('dragonAcademyDataV4', JSON.stringify(appData));
     }
 
     function getCurrentStudent() {
@@ -881,38 +891,21 @@
       let name = `דרקון עולם ${level} 🐉`;
       document.getElementById('pet-name').innerText = name;
 
-      const glowGrad = ctx.createRadialGradient(65, 60, 10, 65, 60, 55);
-      glowGrad.addColorStop(0, 'rgba(168, 85, 247, 0.4)');
-      glowGrad.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = glowGrad;
-      ctx.beginPath(); ctx.arc(65, 60, 55, 0, Math.PI * 2); ctx.fill();
+      if (dragonImg.complete && dragonImg.naturalWidth !== 0) {
+        ctx.drawImage(dragonImg, 15, 10, 100, 100);
+      } else {
+        // גיבוי צורות
+        const glowGrad = ctx.createRadialGradient(65, 60, 10, 65, 60, 55);
+        glowGrad.addColorStop(0, 'rgba(168, 85, 247, 0.4)');
+        glowGrad.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = glowGrad; ctx.beginPath(); ctx.arc(65, 60, 55, 0, Math.PI * 2); ctx.fill();
 
-      ctx.fillStyle = '#9333ea';
-      ctx.beginPath(); ctx.moveTo(35, 65); ctx.lineTo(10, 40); ctx.lineTo(25, 80); ctx.fill();
-      ctx.beginPath(); ctx.moveTo(95, 65); ctx.lineTo(120, 40); ctx.lineTo(105, 80); ctx.fill();
-
-      const bodyGrad = ctx.createLinearGradient(0, 30, 0, 100);
-      bodyGrad.addColorStop(0, level >= 10 ? '#ec4899' : (level >= 5 ? '#fbbf24' : '#34d399'));
-      bodyGrad.addColorStop(1, level >= 10 ? '#be185d' : (level >= 5 ? '#d97706' : '#059669'));
-      ctx.fillStyle = bodyGrad;
-      
-      ctx.beginPath(); ctx.arc(65, 75, 28, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(65, 42, 22, 0, Math.PI * 2); ctx.fill();
-
-      ctx.fillStyle = '#ffffff';
-      ctx.beginPath(); ctx.arc(56, 38, 7, 0, Math.PI * 2); ctx.arc(74, 38, 7, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#0f172a';
-      ctx.beginPath(); ctx.arc(56, 38, 3.5, 0, Math.PI * 2); ctx.arc(74, 38, 3.5, 0, Math.PI * 2); ctx.fill();
-
-      if (level >= 3) {
-        ctx.fillStyle = '#fbbf24';
-        ctx.beginPath();
-        ctx.moveTo(52, 22); ctx.lineTo(55, 12); ctx.lineTo(65, 18); ctx.lineTo(75, 12); ctx.lineTo(78, 22);
-        ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#34d399';
+        ctx.beginPath(); ctx.arc(65, 75, 28, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(65, 42, 22, 0, Math.PI * 2); ctx.fill();
       }
     }
 
-    // --- חנות מעודכנת ---
     function openShop() {
       hideAllViews();
       document.getElementById('view-shop').classList.remove('hidden');
@@ -952,7 +945,7 @@
           if (isEquipped) { btnText = 'בשימוש ✔️'; action = ''; }
           else if (hasItem) { btnText = 'לבש 👕'; action = `equipSkin('${key}')`; }
         } else {
-          if (hasItem) { btnText = 'בחדר שלך 🛋️'; action = ''; }
+          if (hasItem) { btnText = 'בעולמות שלך 🛋️'; action = ''; }
         }
 
         grid.innerHTML += `
@@ -999,9 +992,20 @@
       openShop();
     }
 
+    // --- מסך עיצוב העולמות (לפי העולמות שנפתחו!) ---
     function openRoom() {
       hideAllViews();
       document.getElementById('view-room').classList.remove('hidden');
+
+      const st = getCurrentStudent();
+      const currentMaxLevel = Math.floor(st.points / 300) + 1;
+      const select = document.getElementById('world-decor-select');
+      select.innerHTML = '';
+
+      WORLDS.slice(0, currentMaxLevel).forEach(w => {
+        select.innerHTML += `<option value="${w.id}">${w.name}</option>`;
+      });
+
       drawRoom();
     }
 
@@ -1009,11 +1013,30 @@
       const canvas = document.getElementById('roomCanvas');
       const ctx = canvas.getContext('2d');
       const st = getCurrentStudent();
+      const selectedWorldId = parseInt(document.getElementById('world-decor-select').value || 1);
 
-      ctx.fillStyle = '#110726'; ctx.fillRect(0, 0, 600, 350);
-      const floorGrad = ctx.createLinearGradient(0, 250, 0, 350);
-      floorGrad.addColorStop(0, '#3b0764'); floorGrad.addColorStop(1, '#1e0236');
-      ctx.fillStyle = floorGrad; ctx.fillRect(0, 250, 600, 100);
+      ctx.clearRect(0, 0, 600, 350);
+
+      // ציור רקע לפי העולם הנבחר
+      if (selectedWorldId === 1 && forestImg.complete && forestImg.naturalWidth !== 0) {
+        // תמונת עולם 1: יער המסתורין!
+        ctx.drawImage(forestImg, 0, 0, 600, 350);
+      } else {
+        // רקע ברירת מחדל קסום
+        ctx.fillStyle = '#110726'; ctx.fillRect(0, 0, 600, 350);
+        const floorGrad = ctx.createLinearGradient(0, 250, 0, 350);
+        floorGrad.addColorStop(0, '#3b0764'); floorGrad.addColorStop(1, '#1e0236');
+        ctx.fillStyle = floorGrad; ctx.fillRect(0, 250, 600, 100);
+      }
+
+      // ציור החפצים שנרכשו
+      if (st.roomItems.includes('capybara_cute')) {
+        if (capybaraImg.complete && capybaraImg.naturalWidth !== 0) {
+          ctx.drawImage(capybaraImg, 220, 220, 80, 80);
+        } else {
+          ctx.fillStyle = '#78350f'; ctx.fillRect(240, 240, 55, 30);
+        }
+      }
 
       if (st.roomItems.includes('lamp_pink')) {
         ctx.fillStyle = '#ec4899'; ctx.beginPath(); ctx.arc(70, 80, 18, 0, Math.PI*2); ctx.fill();
@@ -1021,29 +1044,9 @@
       if (st.roomItems.includes('poster_dragon')) {
         ctx.fillStyle = '#6b21a8'; ctx.fillRect(150, 50, 80, 100);
         ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 3; ctx.strokeRect(150, 50, 80, 100);
-        ctx.fillStyle = '#fbbf24'; ctx.font = '24px Rubik'; ctx.fillText('🐉', 175, 110);
-      }
-      if (st.roomItems.includes('magic_carpet')) {
-        ctx.fillStyle = '#db2777'; ctx.beginPath(); ctx.roundRect(80, 275, 140, 35, 10); ctx.fill();
-      }
-      if (st.roomItems.includes('capybara_cute')) {
-        ctx.fillStyle = '#78350f'; ctx.fillRect(240, 240, 55, 30);
-        ctx.fillStyle = '#92400e'; ctx.fillRect(280, 225, 22, 22);
-      }
-      if (st.roomItems.includes('gaming_chair')) {
-        ctx.fillStyle = '#a855f7'; ctx.fillRect(350, 190, 45, 80);
-      }
-      if (st.roomItems.includes('crystal_statue')) {
-        ctx.fillStyle = '#38bdf8'; ctx.beginPath(); ctx.arc(430, 240, 20, 0, Math.PI*2); ctx.fill();
       }
       if (st.roomItems.includes('throne')) {
         ctx.fillStyle = '#fbbf24'; ctx.fillRect(480, 160, 85, 110);
-      }
-      if (st.roomItems.includes('arcade_machine')) {
-        ctx.fillStyle = '#ec4899'; ctx.fillRect(20, 140, 60, 120);
-      }
-      if (st.roomItems.includes('treasure_chest')) {
-        ctx.fillStyle = '#d97706'; ctx.fillRect(260, 280, 65, 40);
       }
     }
 
@@ -1167,24 +1170,21 @@
       groundGrad.addColorStop(0, '#4c1d95'); groundGrad.addColorStop(1, '#1e1b4b');
       ctx.fillStyle = groundGrad; ctx.fillRect(0, 215, 700, 35);
 
-      const st = getCurrentStudent();
-      const skin = SKINS[st.equippedSkin] || SKINS.classic;
+      // ציור הדינוזאור מתמונה או צורה
+      if (dinoImg.complete && dinoImg.naturalWidth !== 0) {
+        ctx.drawImage(dinoImg, dino.x, dino.y, dino.w, dino.h);
+      } else {
+        const st = getCurrentStudent();
+        const skin = SKINS[st.equippedSkin] || SKINS.classic;
 
-      ctx.shadowColor = skin.colorStart; ctx.shadowBlur = 12;
-      const dinoGrad = ctx.createLinearGradient(dino.x, dino.y, dino.x, dino.y + dino.h);
-      dinoGrad.addColorStop(0, skin.colorStart); dinoGrad.addColorStop(1, skin.colorEnd);
-      ctx.fillStyle = dinoGrad;
+        ctx.shadowColor = skin.colorStart; ctx.shadowBlur = 12;
+        const dinoGrad = ctx.createLinearGradient(dino.x, dino.y, dino.x, dino.y + dino.h);
+        dinoGrad.addColorStop(0, skin.colorStart); dinoGrad.addColorStop(1, skin.colorEnd);
+        ctx.fillStyle = dinoGrad;
 
-      ctx.beginPath(); ctx.roundRect(dino.x, dino.y, dino.w, dino.h, 14); ctx.fill();
-
-      ctx.fillStyle = '#a855f7';
-      ctx.beginPath(); ctx.moveTo(dino.x + 10, dino.y + 25); ctx.lineTo(dino.x - 12, dino.y + 15); ctx.lineTo(dino.x + 5, dino.y + 38); ctx.fill();
-
-      ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(dino.x + 34, dino.y + 16, 6, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#0f172a'; ctx.beginPath(); ctx.arc(dino.x + 35, dino.y + 16, 3, 0, Math.PI * 2); ctx.fill();
-
-      ctx.fillStyle = '#ffffff'; ctx.fillRect(dino.x + 36, dino.y + 28, 6, 8);
-      ctx.shadowBlur = 0;
+        ctx.beginPath(); ctx.roundRect(dino.x, dino.y, dino.w, dino.h, 14); ctx.fill();
+        ctx.shadowBlur = 0;
+      }
 
       obstacles.forEach(o => {
         ctx.shadowColor = '#ec4899'; ctx.shadowBlur = 14;
@@ -1329,7 +1329,7 @@
       }
     }
 
-    // משחק 3: תפוס את הכדורים (תדירות נמוכה, +1 מטבע בתפיסה, -1 חיים בפספוס)
+    // משחק 3: תפוס את הכדורים
     let basket = { x: 300, y: 260, w: 90, h: 22, speed: 7.5 };
     let fallingBalls = [];
     let caughtCount = 0;
@@ -1678,7 +1678,7 @@
         hearts: 3,
         equippedSkin: 'classic',
         unlockedSkins: ['classic'],
-        roomItems: [],
+        roomItems: ['capybara_cute'],
         questions: []
       };
 
